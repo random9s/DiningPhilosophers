@@ -2,14 +2,22 @@ package main
 
 import (
 	"time"
+    "math/rand"
 )
 
-type forkPair [2]chan struct{}
+type (
+    forkPair [2]chan struct{}
+    forks chan forkPair
+    philosopher struct{}
+    philosophers chan *philosopher
+)
 
-func newForks(n int) chan forkPair {
-	out := make(chan forkPair, 5)
+func newForks(n int) forks {
+    var (
+	    out = make(forks, 5)
+	    pair = make([]chan struct{}, 5, 5)
+    )
 
-	var pair = make([]chan struct{}, 5, 5)
 	for i := 0; i < 5; i++ {
 		pair[i] = make(chan struct{}, 1)
 		pair[i] <- struct{}{}
@@ -22,22 +30,23 @@ func newForks(n int) chan forkPair {
 		out <- f
 	}
 
-	return out
+    return out
 }
 
-type philosopher struct{}
 
 func newPhilosopher(diners, thinkers philosophers) *philosopher {
 	var p = &philosopher{}
 	go func() {
-		for {
-			diners <- <-thinkers
+        r := rand.New(rand.NewSource(time.Now().UnixNano()))
+        for phil := range thinkers {
+            time.Sleep(time.Microsecond * time.Duration(r.Int63()))
+            diners <- phil
 		}
 	}()
 	return p
 }
 
-func (p *philosopher) Eat(pair forkPair, forks chan forkPair, thinkers philosophers) {
+func (p *philosopher) Eat(pair forkPair, forks forks, thinkers philosophers) {
 	left := <-pair[0]
 	right := <-pair[1]
 
@@ -49,8 +58,6 @@ func (p *philosopher) Eat(pair forkPair, forks chan forkPair, thinkers philosoph
 	forks <- pair
 	thinkers <- p
 }
-
-type philosophers chan *philosopher
 
 func main() {
 	var (
@@ -64,9 +71,7 @@ func main() {
 		thinkers <- newPhilosopher(diners, thinkers) // initialize our philosophers and start each goroutine
 	}
 
-	for {
-		philosopher := <-diners
-		pair := <-forks
-		go philosopher.Eat(pair, forks, thinkers)
+    for phil := range diners {
+		go phil.Eat(<-forks, forks, thinkers)
 	}
 }
