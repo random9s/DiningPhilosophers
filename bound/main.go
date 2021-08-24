@@ -6,36 +6,17 @@ import (
 )
 
 type (
-    forkPair [2]chan struct{}
-    forks chan forkPair
-    philosopher struct{}
+    fork chan struct{}
+    philosopher struct{
+        left fork
+        right fork
+        thinkers chan *philosopher
+    }
     philosophers chan *philosopher
 )
 
-func newForks(n int) forks {
-    var (
-	    out = make(forks, 5)
-	    pair = make([]chan struct{}, 5, 5)
-    )
-
-	for i := 0; i < 5; i++ {
-		pair[i] = make(chan struct{}, 1)
-		pair[i] <- struct{}{}
-	}
-
-	for i := 0; i < 5; i++ {
-		var f forkPair
-		f[0] = pair[i]         //left fork
-		f[1] = pair[(i-1+n)%n] //right fork
-		out <- f
-	}
-
-    return out
-}
-
-
-func newPhilosopher(diners, thinkers philosophers) *philosopher {
-	var p = &philosopher{}
+func newPhilosopher(diners, thinkers philosophers, left, right fork) *philosopher {
+	var p = &philosopher{ left, right, thinkers}
 	go func() {
         r := rand.New(rand.NewSource(time.Now().UnixNano()))
         for phil := range thinkers {
@@ -46,32 +27,39 @@ func newPhilosopher(diners, thinkers philosophers) *philosopher {
 	return p
 }
 
-func (p *philosopher) Eat(pair forkPair, forks forks, thinkers philosophers) {
-	left := <-pair[0]
-	right := <-pair[1]
+func (p *philosopher) Eat(thinkers philosophers) {
+	left := <-p.left
+	right := <-p.right
 
 	time.Sleep(time.Microsecond * 250)
 
-	pair[0] <- left
-	pair[1] <- right
+	p.left<- left
+	p.right <- right
 
-	forks <- pair
-	thinkers <- p
+    p.Think()
+}
+
+func (p *philosopher) Think() {
+    p.thinkers <- p
 }
 
 func main() {
 	var (
 		numPhilosophers = 5
-		forks           = newForks(numPhilosophers)           // buffered channel containing all empty seats and all unused fork pairs
-		diners          = make(philosophers)                  // diners come as they become hungry and stop thinking
-		thinkers        = make(philosophers, numPhilosophers) // buffered channel containing all philosophers in their starting state
+		diners          = make(philosophers)                                      // diners come as they become hungry and stop thinking
+		thinkers        = make(philosophers, numPhilosophers)                     // buffered channel containing all philosophers in their starting state
+		forks           = make([]chan struct{}, numPhilosophers, numPhilosophers) // buffered channel containing all empty seats and all unused fork pairs
 	)
+	for i := 0; i < 5; i++ {
+		forks[i] = make(chan struct{}, 1)
+		forks[i] <- struct{}{}
+	}
 
 	for i := 0; i < numPhilosophers; i++ {
-		thinkers <- newPhilosopher(diners, thinkers) // initialize our philosophers and start each goroutine
+		thinkers <- newPhilosopher(diners, thinkers, forks[i], forks[(i-1+numPhilosophers)%numPhilosophers]) // initialize our philosophers and start each goroutine
 	}
 
     for phil := range diners {
-		go phil.Eat(<-forks, forks, thinkers)
+		go phil.Eat(thinkers)
 	}
 }
