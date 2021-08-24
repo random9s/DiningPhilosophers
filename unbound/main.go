@@ -15,9 +15,9 @@ func newPhilosopher(diners, thinkers philosophers) *philosopher {
 	var p = &philosopher{}
 	go func() {
         r := rand.New(rand.NewSource(time.Now().UnixNano()))
-        for phil := range thinkers {
+        for p := range thinkers {
             time.Sleep(time.Microsecond * time.Duration(r.Int63()))
-            diners <- phil
+            diners <- p
 		}
 	}()
 	return p
@@ -48,7 +48,7 @@ func main() {
 		forks <- struct{}{}                          // initialize our forks
 	}
 
-    for phil := range diners {
-		go phil.Eat(forks, thinkers)
+    for p := range diners {
+		go p.Eat(forks, thinkers)
 	}
 }

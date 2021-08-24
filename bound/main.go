@@ -42,8 +42,8 @@ func main() {
 	var (
 		numPhilosophers = 5
 		diners          = make(philosophers)                     // diners come as they become hungry and stop thinking
+		forks           = make([]fork, numPhilosophers)          // buffered channel containing all empty seats and all unused fork pairs
 		thinkers        = make(philosophers, numPhilosophers)    // buffered channel containing all philosophers in their starting state
-		forks           = make([]fork, numPhilosophers) // buffered channel containing all empty seats and all unused fork pairs
 	)
 
 	for i := 0; i < 5; i++ {
