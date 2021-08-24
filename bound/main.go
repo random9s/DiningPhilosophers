@@ -1,26 +1,26 @@
 package main
 
 import (
+	"math/rand"
 	"time"
-    "math/rand"
 )
 
 type (
-    fork chan struct{}
-    philosopher struct{
-        left fork
-        right fork
-    }
-    philosophers chan *philosopher
+	fork        chan struct{}
+	philosopher struct {
+		left  fork
+		right fork
+	}
+	philosophers chan *philosopher
 )
 
 func newPhilosopher(diners, thinkers philosophers, left, right fork) *philosopher {
-	var p = &philosopher{ left, right }
+	var p = &philosopher{left, right}
 	go func() {
-        r := rand.New(rand.NewSource(time.Now().UnixNano()))
-        for phil := range thinkers {
-            time.Sleep(time.Microsecond * time.Duration(r.Int63()))
-            diners <- phil
+		r := rand.New(rand.NewSource(time.Now().UnixNano()))
+		for phil := range thinkers {
+			time.Sleep(time.Microsecond * time.Duration(r.Int63()))
+			diners <- phil
 		}
 	}()
 	return p
@@ -35,15 +35,15 @@ func (p *philosopher) Eat(thinkers philosophers) {
 	p.left <- left
 	p.right <- right
 
-    thinkers <- p
+	thinkers <- p
 }
 
 func main() {
 	var (
 		numPhilosophers = 5
-		diners          = make(philosophers)                     // diners come as they become hungry and stop thinking
-		forks           = make([]fork, numPhilosophers)          // buffered channel containing all empty seats and all unused fork pairs
-		thinkers        = make(philosophers, numPhilosophers)    // buffered channel containing all philosophers in their starting state
+		diners          = make(philosophers)                  // diners come as they become hungry and stop thinking
+		forks           = make([]fork, numPhilosophers)       // buffered channel containing all empty seats and all unused fork pairs
+		thinkers        = make(philosophers, numPhilosophers) // buffered channel containing all philosophers in their starting state
 	)
 
 	for i := 0; i < 5; i++ {
@@ -55,7 +55,7 @@ func main() {
 		thinkers <- newPhilosopher(diners, thinkers, forks[i], forks[(i-1+numPhilosophers)%numPhilosophers]) // initialize our philosophers and start each goroutine
 	}
 
-    for p := range diners {
+	for p := range diners {
 		go p.Eat(thinkers)
 	}
 }
